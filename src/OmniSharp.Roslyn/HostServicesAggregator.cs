@@ -14,12 +14,13 @@ namespace OmniSharp
     public class HostServicesAggregator
     {
         private ImmutableArray<Assembly> _assemblies;
+        private ILogger<HostServicesAggregator> _logger;
 
         [ImportingConstructor]
         public HostServicesAggregator(
             [ImportMany] IEnumerable<IHostServicesProvider> hostServicesProviders, ILoggerFactory loggerFactory)
         {
-            var logger = loggerFactory.CreateLogger<HostServicesAggregator>();
+            _logger = loggerFactory.CreateLogger<HostServicesAggregator>();
             var builder = ImmutableHashSet.CreateBuilder<Assembly>();
 
             // We always include the default Roslyn assemblies, which includes:
@@ -41,13 +42,13 @@ namespace OmniSharp
                     {
                         var exportedTypes = assembly.ExportedTypes;
                         builder.Add(assembly);
-                        logger.LogTrace("Successfully added {assembly} to host service assemblies.", assembly.FullName);
+                        _logger.LogTrace("Added {assembly} to host service assemblies references.", assembly.FullName);
                     }
                     catch (Exception ex)
                     {
                         // if we can't see exported types, it means that the assembly cannot participate
                         // in MefHostServices. Most likely cause is that one or more of its dependencies (typically a Visual Studio or GACed DLL) are missing
-                        logger.LogWarning("Expected to use {assembly} in host services but the assembly cannot be loaded due to an exception: {exceptionMessage}.", assembly.FullName, ex.Message);
+                        _logger.LogWarning("Expected to use {assembly} in host services but the assembly cannot be loaded due to an exception: {exceptionMessage}.", assembly.FullName, ex.Message);
                     }
                 }
             }
@@ -57,7 +58,16 @@ namespace OmniSharp
 
         public HostServices CreateHostServices()
         {
-            return MefHostServices.Create(_assemblies);
+            HostServices services = null;
+            try { 
+                services = MefHostServices.Create(_assemblies);
+            }
+            catch (Exception ex)
+            {
+               _logger.LogError($"host services cannot be all loaded due to an exception: {ex.Message}.");
+               return MefHostServices.DefaultHost;
+            }
+            return services;
         }
     }
 }
