@@ -4,7 +4,7 @@
     {
         public Caller()
         {
-            Callee callee = new Callee();
+            var callee = new Callee();
         }
     }
 }

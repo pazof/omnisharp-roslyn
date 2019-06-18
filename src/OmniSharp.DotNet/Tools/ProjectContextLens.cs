@@ -64,6 +64,15 @@ namespace OmniSharp.DotNet.Tools
             {
                 // If this is a project, only add its compilation assembly if it is simply wrapping another assembly.
                 var projectDescription = export.Library as ProjectDescription;
+                if (projectDescription == null)
+                
+                { 
+                    // FIXME what for a description?
+                    if ( export.CompilationAssemblies != null)
+                      _fileReferences.AddRange(export.CompilationAssemblies.Select(asset => asset.ResolvedPath));
+
+                } else 
+                
                 if (!string.IsNullOrEmpty(projectDescription.TargetFrameworkInfo?.AssemblyPath))
                 {
                     _fileReferences.AddRange(export.CompilationAssemblies.Select(asset => asset.ResolvedPath));

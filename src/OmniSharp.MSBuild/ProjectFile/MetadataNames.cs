@@ -8,6 +8,5 @@
         public const string OriginalItemSpec = nameof(OriginalItemSpec);
         public const string ReferenceSourceTarget = nameof(ReferenceSourceTarget);
         public const string Version = nameof(Version);
-        public const string Aliases = nameof(Aliases);
     }
 }

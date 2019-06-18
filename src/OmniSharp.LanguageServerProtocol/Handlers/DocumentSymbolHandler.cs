@@ -1,14 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
 using OmniSharp.Extensions.JsonRpc;
-using OmniSharp.Extensions.LanguageServer.Protocol.Client.Capabilities;
-using OmniSharp.Extensions.LanguageServer.Protocol.Models;
-using OmniSharp.Extensions.LanguageServer.Protocol.Server;
+using OmniSharp.Extensions.LanguageServer.Capabilities.Client;
+using OmniSharp.Extensions.LanguageServer.Models;
+using OmniSharp.Extensions.LanguageServer.Protocol;
+using OmniSharp.Models;
+using OmniSharp.Models.MembersFlat;
 using OmniSharp.Models.MembersTree;
-using OmniSharp.Models.V2.CodeStructure;
+using OmniSharp.Models.TypeLookup;
 
 namespace OmniSharp.LanguageServerProtocol.Handlers
 {
@@ -17,52 +18,52 @@ namespace OmniSharp.LanguageServerProtocol.Handlers
         public static IEnumerable<IJsonRpcHandler> Enumerate(RequestHandlers handlers)
         {
             foreach (var (selector, handler) in handlers
-                .OfType<Mef.IRequestHandler<CodeStructureRequest, CodeStructureResponse>>())
+                .OfType<Mef.IRequestHandler<MembersTreeRequest, FileMemberTree>>())
                 if (handler != null)
                     yield return new DocumentSymbolHandler(handler, selector);
         }
 
         private DocumentSymbolCapability _capability;
-        private readonly Mef.IRequestHandler<CodeStructureRequest, CodeStructureResponse> _codeStructureHandler;
+        private readonly Mef.IRequestHandler<MembersTreeRequest, FileMemberTree> _membersAsTreeHandler;
         private readonly DocumentSelector _documentSelector;
 
         private static readonly IDictionary<string, SymbolKind> Kinds = new Dictionary<string, SymbolKind>
         {
-            { OmniSharp.Models.V2.SymbolKinds.Class, SymbolKind.Class },
-            { OmniSharp.Models.V2.SymbolKinds.Delegate, SymbolKind.Class },
-            { OmniSharp.Models.V2.SymbolKinds.Enum, SymbolKind.Enum },
-            { OmniSharp.Models.V2.SymbolKinds.Interface, SymbolKind.Interface },
-            { OmniSharp.Models.V2.SymbolKinds.Struct, SymbolKind.Struct },
-            { OmniSharp.Models.V2.SymbolKinds.Constant, SymbolKind.Constant },
-            { OmniSharp.Models.V2.SymbolKinds.Destructor, SymbolKind.Method },
-            { OmniSharp.Models.V2.SymbolKinds.EnumMember, SymbolKind.EnumMember },
-            { OmniSharp.Models.V2.SymbolKinds.Event, SymbolKind.Event },
-            { OmniSharp.Models.V2.SymbolKinds.Field, SymbolKind.Field },
-            { OmniSharp.Models.V2.SymbolKinds.Indexer, SymbolKind.Property },
-            { OmniSharp.Models.V2.SymbolKinds.Method, SymbolKind.Method },
-            { OmniSharp.Models.V2.SymbolKinds.Operator, SymbolKind.Operator },
-            { OmniSharp.Models.V2.SymbolKinds.Property, SymbolKind.Property },
-            { OmniSharp.Models.V2.SymbolKinds.Namespace, SymbolKind.Namespace },
-            { OmniSharp.Models.V2.SymbolKinds.Unknown, SymbolKind.Class },
+            {"NamespaceDeclaration", SymbolKind.Namespace},
+            {"ClassDeclaration", SymbolKind.Class},
+            {"FieldDeclaration", SymbolKind.Field},
+            {"PropertyDeclaration", SymbolKind.Property},
+            {"EventFieldDeclaration", SymbolKind.Property},
+            {"MethodDeclaration", SymbolKind.Method},
+            {"EnumDeclaration", SymbolKind.Enum},
+            {"StructDeclaration", SymbolKind.Enum},
+            {"EnumMemberDeclaration", SymbolKind.Property},
+            {"InterfaceDeclaration", SymbolKind.Interface},
+            {"VariableDeclaration", SymbolKind.Variable}
         };
 
-        public DocumentSymbolHandler(Mef.IRequestHandler<CodeStructureRequest, CodeStructureResponse> codeStructureHandler, DocumentSelector documentSelector)
+        public DocumentSymbolHandler(Mef.IRequestHandler<MembersTreeRequest, FileMemberTree> membersAsTreeHandler, DocumentSelector documentSelector)
         {
-            _codeStructureHandler = codeStructureHandler;
+            _membersAsTreeHandler = membersAsTreeHandler;
             _documentSelector = documentSelector;
         }
 
-        public async Task<SymbolInformationOrDocumentSymbolContainer> Handle(DocumentSymbolParams request, CancellationToken token)
+        public async Task<SymbolInformationContainer> Handle(DocumentSymbolParams request, CancellationToken token)
         {
-            var omnisharpRequest = new CodeStructureRequest()
+            var omnisharpRequest = new MembersTreeRequest()
             {
                 FileName = Helpers.FromUri(request.TextDocument.Uri),
             };
 
-            var omnisharpResponse = await _codeStructureHandler.Handle(omnisharpRequest);
+            var omnisharpResponse = await _membersAsTreeHandler.Handle(omnisharpRequest);
+            var symbolInformationContainer = new List<SymbolInformation>();
 
-            return omnisharpResponse.Elements?.Select(ToDocumentSymbolInformationOrDocumentSymbol).ToArray() ??
-                Array.Empty<SymbolInformationOrDocumentSymbol>();
+            foreach (var node in omnisharpResponse.TopLevelTypeDefinitions)
+            {
+                ToDocumentSymbol(node, symbolInformationContainer);
+            }
+
+            return symbolInformationContainer;
         }
 
         public TextDocumentRegistrationOptions GetRegistrationOptions()
@@ -78,21 +79,28 @@ namespace OmniSharp.LanguageServerProtocol.Handlers
             _capability = capability;
         }
 
-        private static SymbolInformationOrDocumentSymbol ToDocumentSymbolInformationOrDocumentSymbol(CodeElement node)
+        private static void ToDocumentSymbol(FileMemberElement node, List<SymbolInformation> symbolInformationContainer, string containerName = null)
         {
-            return new SymbolInformationOrDocumentSymbol(ToDocumentSymbol(node));
-        }
-
-        private static DocumentSymbol ToDocumentSymbol(CodeElement node)
-        {
-            return new DocumentSymbol
+            var symbolInformation = new SymbolInformation
             {
-                Name = node.Name,
-                Kind = Kinds.ContainsKey(node.Kind) ? Kinds[node.Kind] : SymbolKind.Class,
-                Range = Helpers.ToRange(node.Ranges[OmniSharp.Models.V2.SymbolRangeNames.Full]),
-                SelectionRange = Helpers.ToRange(node.Ranges[OmniSharp.Models.V2.SymbolRangeNames.Name]),
-                Children = new Container<DocumentSymbol>(node.Children?.Select(ToDocumentSymbol) ?? Enumerable.Empty<DocumentSymbol>())
+                Name = node.Location.Text,
+                Kind = Kinds[node.Kind],
+                Location = new Location
+                {
+                    Uri = Helpers.ToUri(node.Location.FileName),
+                    Range = node.Location.ToRange()
+                },
+                ContainerName = containerName
             };
+
+            if (node.ChildNodes != null)
+            {
+                foreach (var childNode in node.ChildNodes)
+                {
+                    ToDocumentSymbol(childNode, symbolInformationContainer, symbolInformation.Name);
+                }
+            }
+            symbolInformationContainer.Add(symbolInformation);
         }
     }
 }

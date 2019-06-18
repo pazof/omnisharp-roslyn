@@ -16,7 +16,8 @@ namespace OmniSharp
         {
             _environment = environment;
             _builder = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
-                .SetBasePath(AppContext.BaseDirectory);
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile(Constants.ConfigFile, optional: true);
         }
 
         public IConfigurationBuilder Add(IConfigurationSource source)
@@ -29,6 +30,7 @@ namespace OmniSharp
         {
             var configBuilder = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
                 .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile(Constants.ConfigFile, optional: true)
                 .AddEnvironmentVariables("OMNISHARP_");
 
             if (_environment.AdditionalArguments?.Length > 0)

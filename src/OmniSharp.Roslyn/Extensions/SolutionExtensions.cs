@@ -11,9 +11,8 @@ namespace OmniSharp.Extensions
     public static class SolutionExtensions
     {
         public static async Task<QuickFixResponse> FindSymbols(this Solution solution,
-            string pattern,
-            string projectFileExtension,
-            int maxItemsToReturn)
+            Func<string, bool> predicate,
+            string projectFileExtension)
         {
             var projects = solution.Projects.Where(p =>
                 (p.FilePath?.EndsWith(projectFileExtension, StringComparison.OrdinalIgnoreCase) ?? false) ||
@@ -23,9 +22,7 @@ namespace OmniSharp.Extensions
 
             foreach (var project in projects)
             {
-                var symbols = !string.IsNullOrEmpty(pattern) ?
-                    await SymbolFinder.FindSourceDeclarationsWithPatternAsync(project, pattern, SymbolFilter.TypeAndMember) :
-                    await SymbolFinder.FindSourceDeclarationsAsync(project, candidate => true, SymbolFilter.TypeAndMember);
+                var symbols = await SymbolFinder.FindSourceDeclarationsAsync(project, predicate, SymbolFilter.TypeAndMember);
 
                 foreach (var symbol in symbols)
                 {
@@ -40,25 +37,10 @@ namespace OmniSharp.Extensions
                     {
                         symbolLocations.Add(ConvertSymbol(solution, symbol, location));
                     }
-
-                    if (ShouldStopSearching(maxItemsToReturn, symbolLocations))
-                    {
-                        break;
-                    }
-                }
-
-                if (ShouldStopSearching(maxItemsToReturn, symbolLocations))
-                {
-                    break;
                 }
             }
 
             return new QuickFixResponse(symbolLocations.Distinct().ToList());
-        }
-
-        private static bool ShouldStopSearching(int maxItemsToReturn, List<QuickFix> symbolLocations)
-        {
-            return maxItemsToReturn > 0 && symbolLocations.Count >= maxItemsToReturn;
         }
 
         private static QuickFix ConvertSymbol(Solution solution, ISymbol symbol, Location location)

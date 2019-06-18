@@ -1,7 +1,8 @@
+using System;
 using Microsoft.Extensions.Logging;
 using OmniSharp.Logging;
-using OmniSharp.Protocol;
-using OmniSharp.Services;
+using OmniSharp.Stdio.Protocol;
+using OmniSharp.Stdio.Services;
 
 namespace OmniSharp.Stdio.Logging
 {
@@ -9,8 +10,8 @@ namespace OmniSharp.Stdio.Logging
     {
         private readonly ISharedTextWriter _writer;
 
-        public StdioLogger(ISharedTextWriter writer, string categoryName)
-            : base(categoryName, addHeader: false)
+        public StdioLogger(ISharedTextWriter writer, string categoryName, Func<string, LogLevel, bool> filter)
+            : base(categoryName, filter, addHeader: false)
         {
             _writer = writer;
         }
@@ -28,7 +29,8 @@ namespace OmniSharp.Stdio.Logging
                 }
             };
 
-            _writer.WriteLine(packet);
+            // don't block the logger
+            _writer.WriteLineAsync(packet);
         }
     }
 }

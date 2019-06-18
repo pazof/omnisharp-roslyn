@@ -13,7 +13,12 @@ namespace OmniSharp.Roslyn.CSharp.Services.Refactoring.V2
 
         public AvailableCodeAction(CodeAction codeAction, CodeAction parentCodeAction = null)
         {
-            this.CodeAction = codeAction ?? throw new ArgumentNullException(nameof(codeAction));
+            if (codeAction == null)
+            {
+                throw new ArgumentNullException(nameof(codeAction));
+            }
+
+            this.CodeAction = codeAction;
             this.ParentCodeAction = parentCodeAction;
         }
 

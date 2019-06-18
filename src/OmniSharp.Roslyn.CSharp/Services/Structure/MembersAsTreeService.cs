@@ -25,8 +25,7 @@ namespace OmniSharp.Roslyn.CSharp.Services.Structure
         {
             return new FileMemberTree()
             {
-                // To provide complete members tree for the document wait until all projects are loaded.
-                TopLevelTypeDefinitions = await StructureComputer.Compute(await _workspace.GetDocumentsFromFullProjectModelAsync(request.FileName), _discovers)
+                TopLevelTypeDefinitions = await StructureComputer.Compute(_workspace.GetDocuments(request.FileName), _discovers)
             };
         }
     }

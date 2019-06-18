@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using OmniSharp.Services;
+using OmniSharp.Stdio.Services;
 using Xunit.Abstractions;
 
 namespace TestUtility

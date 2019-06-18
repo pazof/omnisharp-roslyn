@@ -1,10 +1,6 @@
-﻿using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
+﻿using System.IO;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Diagnostics;
 using OmniSharp.Helpers;
 
 namespace OmniSharp.MSBuild.ProjectFile
@@ -13,46 +9,34 @@ namespace OmniSharp.MSBuild.ProjectFile
     {
         public static CSharpCompilationOptions CreateCompilationOptions(this ProjectFileInfo projectFileInfo)
         {
-            var compilationOptions = new CSharpCompilationOptions(projectFileInfo.OutputKind);
+            var result = new CSharpCompilationOptions(projectFileInfo.OutputKind);
 
-            compilationOptions = compilationOptions.WithAssemblyIdentityComparer(DesktopAssemblyIdentityComparer.Default);
+            result = result.WithAssemblyIdentityComparer(DesktopAssemblyIdentityComparer.Default);
 
             if (projectFileInfo.AllowUnsafeCode)
             {
-                compilationOptions = compilationOptions.WithAllowUnsafe(true).WithGeneralDiagnosticOption(ReportDiagnostic.Error);
+                result = result.WithAllowUnsafe(true);
             }
 
-            if (projectFileInfo.TreatWarningsAsErrors)
-            {
-                compilationOptions = compilationOptions.WithGeneralDiagnosticOption(ReportDiagnostic.Error);
-            }
-
-            if (projectFileInfo.NullableContextOptions != compilationOptions.NullableContextOptions)
-            {
-                compilationOptions = compilationOptions.WithNullableContextOptions(projectFileInfo.NullableContextOptions);
-            }
-
-            compilationOptions = compilationOptions.WithSpecificDiagnosticOptions(CompilationOptionsHelper.GetDefaultSuppressedDiagnosticOptions(projectFileInfo.SuppressedDiagnosticIds));
+            result = result.WithSpecificDiagnosticOptions(CompilationOptionsHelper.GetDefaultSuppressedDiagnosticOptions(projectFileInfo.SuppressedDiagnosticIds));
 
             if (projectFileInfo.SignAssembly && !string.IsNullOrEmpty(projectFileInfo.AssemblyOriginatorKeyFile))
             {
                 var keyFile = Path.Combine(projectFileInfo.Directory, projectFileInfo.AssemblyOriginatorKeyFile);
-                compilationOptions = compilationOptions.WithStrongNameProvider(new DesktopStrongNameProvider())
+                result = result.WithStrongNameProvider(new DesktopStrongNameProvider())
                                .WithCryptoKeyFile(keyFile);
             }
 
             if (!string.IsNullOrWhiteSpace(projectFileInfo.DocumentationFile))
             {
-                compilationOptions = compilationOptions.WithXmlReferenceResolver(XmlFileResolver.Default);
+                result = result.WithXmlReferenceResolver(XmlFileResolver.Default);
             }
 
-            return compilationOptions;
+            return result;
         }
 
-        public static ProjectInfo CreateProjectInfo(this ProjectFileInfo projectFileInfo, IAnalyzerAssemblyLoader analyzerAssemblyLoader)
+        public static ProjectInfo CreateProjectInfo(this ProjectFileInfo projectFileInfo)
         {
-            var analyzerReferences = ResolveAnalyzerReferencesForProject(projectFileInfo, analyzerAssemblyLoader);
-
             return ProjectInfo.Create(
                 id: projectFileInfo.Id,
                 version: VersionStamp.Create(),
@@ -61,18 +45,7 @@ namespace OmniSharp.MSBuild.ProjectFile
                 language: LanguageNames.CSharp,
                 filePath: projectFileInfo.FilePath,
                 outputFilePath: projectFileInfo.TargetPath,
-                compilationOptions: projectFileInfo.CreateCompilationOptions(),
-                analyzerReferences: analyzerReferences);
-        }
-
-        private static IEnumerable<AnalyzerReference> ResolveAnalyzerReferencesForProject(ProjectFileInfo projectFileInfo, IAnalyzerAssemblyLoader analyzerAssemblyLoader)
-        {
-            foreach(var analyzerAssemblyPath in projectFileInfo.Analyzers.Distinct())
-            {
-                analyzerAssemblyLoader.AddDependencyLocation(analyzerAssemblyPath);
-            }
-
-            return projectFileInfo.Analyzers.Select(analyzerCandicatePath => new AnalyzerFileReference(analyzerCandicatePath, analyzerAssemblyLoader));
+                compilationOptions: projectFileInfo.CreateCompilationOptions());
         }
     }
 }

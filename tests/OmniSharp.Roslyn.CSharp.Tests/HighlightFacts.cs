@@ -56,7 +56,7 @@ namespace N1
 
             AssertSyntax(highlights, testFile.Content.Code, 0,
                 Keyword("namespace"),
-                NamespaceName("N1"),
+                Identifier("N1"),
                 Punctuation("{"),
                 Keyword("class"),
                 ClassName("C1"),
@@ -236,7 +236,6 @@ namespace N1
         private static (string kind, string text) ClassName(string text) => ("class name", text);
         private static (string kind, string text) Field(string text) => ("field name", text);
         private static (string kind, string text) Identifier(string text) => ("identifier", text);
-        private static (string kind, string text) NamespaceName(string text) => ("namespace name", text);
         private static (string kind, string text) Keyword(string text) => ("keyword", text);
         private static (string kind, string text) Number(string text) => ("number", text);
         private static (string kind, string text) Operator(string text) => ("operator", text);

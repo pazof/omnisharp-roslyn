@@ -12,12 +12,9 @@ using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using OmniSharp.Extensions;
-using OmniSharp.Helpers;
 using OmniSharp.Mef;
 using OmniSharp.Models.V2.CodeActions;
-using OmniSharp.Options;
-using OmniSharp.Roslyn.CSharp.Services.Diagnostics;
-using OmniSharp.Roslyn.CSharp.Workers.Diagnostics;
+using OmniSharp.Roslyn.CSharp.Services.CodeActions;
 using OmniSharp.Services;
 using OmniSharp.Utilities;
 
@@ -28,30 +25,23 @@ namespace OmniSharp.Roslyn.CSharp.Services.Refactoring.V2
         protected readonly OmniSharpWorkspace Workspace;
         protected readonly IEnumerable<ICodeActionProvider> Providers;
         protected readonly ILogger Logger;
-        private readonly ICsDiagnosticWorker diagnostics;
-        private readonly CachingCodeFixProviderForProjects codeFixesForProject;
+
+        private readonly CodeActionHelper _helper;
         private readonly MethodInfo _getNestedCodeActions;
 
+        private static readonly Func<TextSpan, List<Diagnostic>> s_createDiagnosticList = _ => new List<Diagnostic>();
+
+        protected Lazy<List<CodeFixProvider>> OrderedCodeFixProviders;
         protected Lazy<List<CodeRefactoringProvider>> OrderedCodeRefactoringProviders;
 
-        // CS8019 isn't directly used (via roslyn) but has an analyzer that report different diagnostic based on CS8019 to improve user experience.
-        private readonly Dictionary<string, string> customDiagVsFixMap = new Dictionary<string, string>
-        {
-            { "CS8019", "RemoveUnnecessaryImportsFixable" }
-        };
-
-        protected BaseCodeActionService(
-            OmniSharpWorkspace workspace,
-            IEnumerable<ICodeActionProvider> providers,
-            ILogger logger,
-            ICsDiagnosticWorker diagnostics,
-            CachingCodeFixProviderForProjects codeFixesForProject)
+        protected BaseCodeActionService(OmniSharpWorkspace workspace, CodeActionHelper helper, IEnumerable<ICodeActionProvider> providers, ILogger logger)
         {
             this.Workspace = workspace;
             this.Providers = providers;
             this.Logger = logger;
-            this.diagnostics = diagnostics;
-            this.codeFixesForProject = codeFixesForProject;
+            this._helper = helper;
+
+            OrderedCodeFixProviders = new Lazy<List<CodeFixProvider>>(() => GetSortedCodeFixProviders());
             OrderedCodeRefactoringProviders = new Lazy<List<CodeRefactoringProvider>>(() => GetSortedCodeRefactoringProviders());
 
             // Sadly, the CodeAction.NestedCodeActions property is still internal.
@@ -62,7 +52,6 @@ namespace OmniSharp.Roslyn.CSharp.Services.Refactoring.V2
             }
 
             this._getNestedCodeActions = nestedCodeActionsProperty.GetGetMethod(nonPublic: true);
-
             if (this._getNestedCodeActions == null)
             {
                 throw new InvalidOperationException("Could not retrieve 'get' method for CodeAction.NestedCodeActions property.");
@@ -73,8 +62,7 @@ namespace OmniSharp.Roslyn.CSharp.Services.Refactoring.V2
 
         protected async Task<IEnumerable<AvailableCodeAction>> GetAvailableCodeActions(ICodeActionRequest request)
         {
-            // To produce a complete list of code actions for the document wait until all projects are loaded.
-            var document = await this.Workspace.GetDocumentFromFullProjectModelAsync(request.FileName);
+            var document = this.Workspace.GetDocument(request.FileName);
             if (document == null)
             {
                 return Array.Empty<AvailableCodeAction>();
@@ -88,12 +76,10 @@ namespace OmniSharp.Roslyn.CSharp.Services.Refactoring.V2
             await CollectCodeFixesActions(document, span, codeActions);
             await CollectRefactoringActions(document, span, codeActions);
 
-            var distinctActions = codeActions.GroupBy(x => x.Title).Select(x => x.First());
-
             // Be sure to filter out any code actions that inherit from CodeActionWithOptions.
             // This isn't a great solution and might need changing later, but every Roslyn code action
             // derived from this type tries to display a dialog. For now, this is a reasonable solution.
-            var availableActions = ConvertToAvailableCodeAction(distinctActions)
+            var availableActions = ConvertToAvailableCodeAction(codeActions)
                 .Where(a => !a.CodeAction.GetType().GetTypeInfo().IsSubclassOf(typeof(CodeActionWithOptions)));
 
             return availableActions;
@@ -112,17 +98,31 @@ namespace OmniSharp.Roslyn.CSharp.Services.Refactoring.V2
 
         private async Task CollectCodeFixesActions(Document document, TextSpan span, List<CodeAction> codeActions)
         {
-            var diagnosticsWithProjects = await this.diagnostics.GetDiagnostics(ImmutableArray.Create(document.FilePath));
+            Dictionary<TextSpan, List<Diagnostic>> aggregatedDiagnostics = null;
 
-            var groupedBySpan = diagnosticsWithProjects
-                    .Select(x => x.diagnostic)
-                    .Where(diagnostic => span.IntersectsWith(diagnostic.Location.SourceSpan))
-                    .GroupBy(diagnostic => diagnostic.Location.SourceSpan);
+            var semanticModel = await document.GetSemanticModelAsync();
 
-            foreach (var diagnosticGroupedBySpan in groupedBySpan)
+            foreach (var diagnostic in semanticModel.GetDiagnostics())
             {
-                var diagnosticSpan = diagnosticGroupedBySpan.Key;
-                var diagnosticsWithSameSpan = diagnosticGroupedBySpan.OrderByDescending(d => d.Severity);
+                if (!span.IntersectsWith(diagnostic.Location.SourceSpan))
+                {
+                    continue;
+                }
+
+                aggregatedDiagnostics = aggregatedDiagnostics ?? new Dictionary<TextSpan, List<Diagnostic>>();
+                var list = aggregatedDiagnostics.GetOrAdd(diagnostic.Location.SourceSpan, s_createDiagnosticList);
+                list.Add(diagnostic);
+            }
+
+            if (aggregatedDiagnostics == null)
+            {
+                return;
+            }
+
+            foreach (var kvp in aggregatedDiagnostics)
+            {
+                var diagnosticSpan = kvp.Key;
+                var diagnosticsWithSameSpan = kvp.Value.OrderByDescending(d => d.Severity);
 
                 await AppendFixesAsync(document, diagnosticSpan, diagnosticsWithSameSpan, codeActions);
             }
@@ -130,10 +130,9 @@ namespace OmniSharp.Roslyn.CSharp.Services.Refactoring.V2
 
         private async Task AppendFixesAsync(Document document, TextSpan span, IEnumerable<Diagnostic> diagnostics, List<CodeAction> codeActions)
         {
-            foreach (var codeFixProvider in GetSortedCodeFixProviders(document))
+            foreach (var codeFixProvider in OrderedCodeFixProviders.Value)
             {
                 var fixableDiagnostics = diagnostics.Where(d => HasFix(codeFixProvider, d.Id)).ToImmutableArray();
-
                 if (fixableDiagnostics.Length > 0)
                 {
                     var context = new CodeFixContext(document, span, fixableDiagnostics, (a, _) => codeActions.Add(a), CancellationToken.None);
@@ -150,36 +149,58 @@ namespace OmniSharp.Roslyn.CSharp.Services.Refactoring.V2
             }
         }
 
-        private List<CodeFixProvider> GetSortedCodeFixProviders(Document document)
+        private List<CodeFixProvider> GetSortedCodeFixProviders()
         {
-            var providerList =
-                this.Providers.SelectMany(provider => provider.CodeFixProviders)
-                    .Concat(codeFixesForProject.GetAllCodeFixesForProject(document.Project.Id));
-
+            var providerList = this.Providers.SelectMany(provider => provider.CodeFixProviders);
             return ExtensionOrderer.GetOrderedOrUnorderedList<CodeFixProvider, ExportCodeFixProviderAttribute>(providerList, attribute => attribute.Name).ToList();
         }
 
         private List<CodeRefactoringProvider> GetSortedCodeRefactoringProviders()
         {
             var providerList = this.Providers.SelectMany(provider => provider.CodeRefactoringProviders);
-            return ExtensionOrderer.GetOrderedOrUnorderedList<CodeRefactoringProvider, ExportCodeFixProviderAttribute>(providerList, attribute => attribute.Name).ToList();
+            return ExtensionOrderer.GetOrderedOrUnorderedList<CodeRefactoringProvider, ExportCodeRefactoringProviderAttribute>(providerList, attribute => attribute.Name).ToList();
         }
 
         private bool HasFix(CodeFixProvider codeFixProvider, string diagnosticId)
         {
-            return codeFixProvider.FixableDiagnosticIds.Any(id => id == diagnosticId)
-                || (customDiagVsFixMap.ContainsKey(diagnosticId) && codeFixProvider.FixableDiagnosticIds.Any(id => id == customDiagVsFixMap[diagnosticId]));
+            var typeName = codeFixProvider.GetType().FullName;
+
+            if (_helper.IsDisallowed(typeName))
+            {
+                return false;
+            }
+
+            // TODO: This is a horrible hack! However, remove unnecessary usings only
+            // responds for diagnostics that are produced by its diagnostic analyzer.
+            // We need to provide a *real* diagnostic engine to address this.
+            if (typeName != CodeActionHelper.RemoveUnnecessaryUsingsProviderName)
+            {
+                if (!codeFixProvider.FixableDiagnosticIds.Contains(diagnosticId))
+                {
+                    return false;
+                }
+            }
+            else if (diagnosticId != "CS8019") // ErrorCode.HDN_UnusedUsingDirective
+            {
+                return false;
+            }
+
+            return true;
         }
 
         private async Task CollectRefactoringActions(Document document, TextSpan span, List<CodeAction> codeActions)
         {
-            var availableRefactorings = OrderedCodeRefactoringProviders.Value;
-
-            foreach (var codeRefactoringProvider in availableRefactorings)
+            foreach (var codeRefactoringProvider in OrderedCodeRefactoringProviders.Value)
             {
+                if (_helper.IsDisallowed(codeRefactoringProvider))
+                {
+                    continue;
+                }
+
+                var context = new CodeRefactoringContext(document, span, a => codeActions.Add(a), CancellationToken.None);
+
                 try
                 {
-                    var context = new CodeRefactoringContext(document, span, a => codeActions.Add(a), CancellationToken.None);
                     await codeRefactoringProvider.ComputeRefactoringsAsync(context);
                 }
                 catch (Exception ex)
@@ -191,17 +212,32 @@ namespace OmniSharp.Roslyn.CSharp.Services.Refactoring.V2
 
         private IEnumerable<AvailableCodeAction> ConvertToAvailableCodeAction(IEnumerable<CodeAction> actions)
         {
-            return actions.SelectMany(action =>
-            {
-                var nestedActions = this._getNestedCodeActions.Invoke<ImmutableArray<CodeAction>>(action, null);
+            var codeActions = new List<AvailableCodeAction>();
 
-                if (nestedActions.Any())
+            foreach (var action in actions)
+            {
+                var handledNestedActions = false;
+
+                // Roslyn supports "nested" code actions in order to allow submenus in the VS light bulb menu.
+                // For now, we'll just expand nested code actions in place.
+                var nestedActions = this._getNestedCodeActions.Invoke<ImmutableArray<CodeAction>>(action, null);
+                if (nestedActions.Length > 0)
                 {
-                    return nestedActions.Select(nestedAction => new AvailableCodeAction(nestedAction, action));
+                    foreach (var nestedAction in nestedActions)
+                    {
+                        codeActions.Add(new AvailableCodeAction(nestedAction, action));
+                    }
+
+                    handledNestedActions = true;
                 }
 
-                return new[] { new AvailableCodeAction(action) };
-            });
+                if (!handledNestedActions)
+                {
+                    codeActions.Add(new AvailableCodeAction(action));
+                }
+            }
+
+            return codeActions;
         }
     }
 }

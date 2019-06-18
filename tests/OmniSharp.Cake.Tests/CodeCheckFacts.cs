@@ -1,5 +1,4 @@
 ﻿using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OmniSharp.Cake.Services.RequestHandlers.Diagnostics;
@@ -9,7 +8,6 @@ using OmniSharp.Models.UpdateBuffer;
 using TestUtility;
 using Xunit;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace OmniSharp.Cake.Tests
 {
@@ -50,10 +48,7 @@ namespace OmniSharp.Cake.Tests
 var target = Argument(""target"", ""Default"");";
 
             var diagnostics = await FindDiagnostics(input, includeFileName: true);
-
-            // error.cake file contains code that cause error like:
-            // The type or namespace name 'asdf' could not be found (are you missing a using directive or an assembly reference?) (CS0246)
-            Assert.DoesNotContain(diagnostics.QuickFixes.Select(x => x.ToString()), x => x.Contains("CS0246"));
+            Assert.Empty(diagnostics.QuickFixes);
         }
 
         private async Task<QuickFixResponse> FindDiagnostics(string contents, bool includeFileName)

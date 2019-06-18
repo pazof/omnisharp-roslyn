@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net461</TargetFramework>
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
 
@@ -9,11 +9,9 @@
     <ProjectReference Include="..\OmniSharp.Abstractions\OmniSharp.Abstractions.csproj" />
     <ProjectReference Include="..\OmniSharp.DotNet.ProjectModel\OmniSharp.DotNet.ProjectModel.csproj" />
     <ProjectReference Include="..\OmniSharp.Roslyn\OmniSharp.Roslyn.csproj" />
-    <ProjectReference Include="..\OmniSharp.Shared\OmniSharp.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="All" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
   </ItemGroup>
 

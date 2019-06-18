@@ -29,14 +29,6 @@ namespace OmniSharp.Roslyn
             _onFileChanged = OnFileChanged;
         }
 
-        public bool IsTransientDocument(DocumentId documentId)
-        {
-            lock(_lock)
-            {
-                return _transientDocumentIds.Contains(documentId);
-            }
-        }
-
         public async Task UpdateBufferAsync(Request request)
         {
             var buffer = request.Buffer;
@@ -167,7 +159,7 @@ namespace OmniSharp.Roslyn
                 lock (_lock)
                 {
                     var documentIds = documentInfos.Select(document => document.Id);
-                    _transientDocuments[fileName] = documentIds;
+                    _transientDocuments.Add(fileName, documentIds);
                     _transientDocumentIds.UnionWith(documentIds);
                 }
 

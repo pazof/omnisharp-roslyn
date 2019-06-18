@@ -5,7 +5,6 @@ using System.Linq;
 using System.IO;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
-using Microsoft.CodeAnalysis;
 
 namespace OmniSharp.Services
 {

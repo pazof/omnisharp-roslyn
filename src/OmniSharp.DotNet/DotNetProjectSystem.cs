@@ -119,7 +119,7 @@ namespace OmniSharp.DotNet
 
         public void Update(bool allowRestore)
         {
-            _logger.LogInformation("Update workspace context");
+            _logger.LogInformation($"Update workspace context (allowRestore:{allowRestore})");
             _workspaceContext.Refresh();
 
             var projectPaths = _workspaceContext.GetAllProjects();
@@ -202,7 +202,7 @@ namespace OmniSharp.DotNet
         private void UpdateFileReferences(ProjectState state, IEnumerable<string> fileReferences)
         {
             var metadataReferences = new List<MetadataReference>();
-            var fileReferencesToRemove = OmniSharp.DotNet.Extensions.EnumerableExtensions.ToHashSet(state.FileMetadataReferences.Keys);
+            var fileReferencesToRemove = state.FileMetadataReferences.Keys.ToHashSet();
 
             foreach (var fileReference in fileReferences)
             {
@@ -245,7 +245,7 @@ namespace OmniSharp.DotNet
         private void UpdateProjectReferences(ProjectState state, IEnumerable<ProjectDescription> projectReferencesLatest)
         {
             var projectReferences = new List<ProjectReference>();
-            var projectReferencesToRemove = OmniSharp.DotNet.Extensions.EnumerableExtensions.ToHashSet(state.ProjectReferences.Keys);
+            var projectReferencesToRemove = state.ProjectReferences.Keys.ToHashSet();
 
             foreach (var description in projectReferencesLatest)
             {

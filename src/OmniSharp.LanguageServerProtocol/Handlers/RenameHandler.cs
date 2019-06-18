@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Composition;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using OmniSharp.Extensions.JsonRpc;
-using OmniSharp.Extensions.LanguageServer.Protocol.Client.Capabilities;
-using OmniSharp.Extensions.LanguageServer.Protocol.Models;
-using OmniSharp.Extensions.LanguageServer.Protocol.Server;
+using OmniSharp.Extensions.LanguageServer.Capabilities.Client;
+using OmniSharp.Extensions.LanguageServer.Models;
+using OmniSharp.Extensions.LanguageServer.Protocol;
 using OmniSharp.Models.Rename;
 
 namespace OmniSharp.LanguageServerProtocol.Handlers
@@ -57,26 +58,25 @@ namespace OmniSharp.LanguageServerProtocol.Handlers
 
             var edits = changes.Values.SelectMany(edit => edit.ToList());
 
-            var documentEdits = omnisharpResponse.Changes.Select(x => new WorkspaceEditDocumentChange(
-                new TextDocumentEdit
+            var documentEdits = omnisharpResponse.Changes.Select(x => new TextDocumentEdit
+            {
+                Edits = new Container<TextEdit>(edits),
+                TextDocument = new VersionedTextDocumentIdentifier
                 {
-                    Edits = new Container<TextEdit>(edits),
-                    TextDocument = new VersionedTextDocumentIdentifier
-                    {
-                        Uri = Helpers.ToUri(x.FileName)
-                    }
-                }));
+                    Uri = Helpers.ToUri(x.FileName)
+                }
+            });
 
             return new WorkspaceEdit
             {
                 Changes = changes,
-                DocumentChanges = new Container<WorkspaceEditDocumentChange>(documentEdits)
+                DocumentChanges = new Container<TextDocumentEdit>(documentEdits)
             };
         }
 
-        public RenameRegistrationOptions GetRegistrationOptions()
+        public TextDocumentRegistrationOptions GetRegistrationOptions()
         {
-            return new RenameRegistrationOptions
+            return new TextDocumentRegistrationOptions
             {
                 DocumentSelector = _documentSelector
             };

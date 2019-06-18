@@ -4,7 +4,6 @@ using System.Composition.Hosting;
 using System.Composition.Hosting.Core;
 using System.Linq;
 using System.Reflection;
-using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,9 +11,7 @@ using Microsoft.Extensions.DependencyModel;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OmniSharp.Eventing;
-using OmniSharp.FileSystem;
 using OmniSharp.FileWatching;
-using OmniSharp.Host.Services;
 using OmniSharp.Mef;
 using OmniSharp.MSBuild.Discovery;
 using OmniSharp.Options;
@@ -45,7 +42,6 @@ namespace OmniSharp
             var memoryCache = _serviceProvider.GetRequiredService<IMemoryCache>();
             var loggerFactory = _serviceProvider.GetRequiredService<ILoggerFactory>();
             var assemblyLoader = _serviceProvider.GetRequiredService<IAssemblyLoader>();
-            var analyzerAssemblyLoader = _serviceProvider.GetRequiredService<IAnalyzerAssemblyLoader>();
             var environment = _serviceProvider.GetRequiredService<IOmniSharpEnvironment>();
             var eventEmitter = _serviceProvider.GetRequiredService<IEventEmitter>();
             var dotNetCliService = _serviceProvider.GetRequiredService<IDotNetCliService>();
@@ -77,7 +73,6 @@ namespace OmniSharp
                 .WithProvider(MefValueProvider.From(options.CurrentValue))
                 .WithProvider(MefValueProvider.From(options.CurrentValue.FormattingOptions))
                 .WithProvider(MefValueProvider.From(assemblyLoader))
-                .WithProvider(MefValueProvider.From(analyzerAssemblyLoader))
                 .WithProvider(MefValueProvider.From(dotNetCliService))
                 .WithProvider(MefValueProvider.From(metadataHelper))
                 .WithProvider(MefValueProvider.From(msbuildLocator))
@@ -89,7 +84,7 @@ namespace OmniSharp
             }
 
             var parts = _assemblies
-                .Concat(new[] { typeof(OmniSharpWorkspace).GetTypeInfo().Assembly, typeof(IRequest).GetTypeInfo().Assembly, typeof(FileSystemHelper).GetTypeInfo().Assembly })
+                .Concat(new[] { typeof(OmniSharpWorkspace).GetTypeInfo().Assembly, typeof(IRequest).GetTypeInfo().Assembly })
                 .Distinct()
                 .SelectMany(a => SafeGetTypes(a))
                 .ToArray();
@@ -111,12 +106,7 @@ namespace OmniSharp
             }
         }
 
-        public static IServiceProvider CreateDefaultServiceProvider(
-            IOmniSharpEnvironment environment,
-            IConfigurationRoot configuration,
-            IEventEmitter eventEmitter,
-            IServiceCollection services = null,
-            Action<ILoggingBuilder> configureLogging = null)
+        public static IServiceProvider CreateDefaultServiceProvider(IOmniSharpEnvironment environment, IConfigurationRoot configuration, IEventEmitter eventEmitter, IServiceCollection services = null)
         {
             services = services ?? new ServiceCollection();
 
@@ -126,7 +116,6 @@ namespace OmniSharp
             // Caching
             services.AddSingleton<IMemoryCache, MemoryCache>();
             services.AddSingleton<IAssemblyLoader, AssemblyLoader>();
-            services.AddSingleton<IAnalyzerAssemblyLoader, AnalyzerAssemblyLoader>();
             services.AddOptions();
 
             services.AddSingleton<IDotNetCliService, DotNetCliService>();
@@ -141,20 +130,7 @@ namespace OmniSharp
             services.Configure<OmniSharpOptions>(configuration);
             services.AddSingleton(configuration);
 
-            services.AddLogging(builder =>
-            {
-                var workspaceInformationServiceName = typeof(WorkspaceInformationService).FullName;
-                var projectEventForwarder = typeof(ProjectEventForwarder).FullName;
-
-                builder.AddFilter(
-                    (category, logLevel) =>
-                        environment.LogLevel <= logLevel &&
-                        category.StartsWith("OmniSharp", StringComparison.OrdinalIgnoreCase) &&
-                        !category.Equals(workspaceInformationServiceName, StringComparison.OrdinalIgnoreCase) &&
-                        !category.Equals(projectEventForwarder, StringComparison.OrdinalIgnoreCase));
-
-                configureLogging?.Invoke(builder);
-            });
+            services.AddLogging();
 
             return services.BuildServiceProvider();
         }
@@ -215,7 +191,6 @@ namespace OmniSharp
             foreach (var dependency in runtimeLibrary.Dependencies)
             {
                 if (dependency.Name == "OmniSharp.Abstractions" ||
-                    dependency.Name == "OmniSharp.Shared" ||
                     dependency.Name == "OmniSharp.Roslyn")
                 {
                     return true;

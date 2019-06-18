@@ -21,7 +21,6 @@
         public const string MSBuildExtensionsPath = nameof(MSBuildExtensionsPath);
         public const string MSBuildSDKsPath = nameof(MSBuildSDKsPath);
         public const string NoWarn = nameof(NoWarn);
-        public const string NullableContextOptions = nameof(NullableContextOptions);
         public const string OutputPath = nameof(OutputPath);
         public const string Platform = nameof(Platform);
         public const string ProjectAssetsFile = nameof(ProjectAssetsFile);
@@ -38,7 +37,6 @@
         public const string TargetFrameworkRootPath = nameof(TargetFrameworkRootPath);
         public const string TargetFrameworks = nameof(TargetFrameworks);
         public const string TargetPath = nameof(TargetPath);
-        public const string TreatWarningsAsErrors = nameof(TreatWarningsAsErrors);
         public const string VisualStudioVersion = nameof(VisualStudioVersion);
         public const string VsInstallRoot = nameof(VsInstallRoot);
     }

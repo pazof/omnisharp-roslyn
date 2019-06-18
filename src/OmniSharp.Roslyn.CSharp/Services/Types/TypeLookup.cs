@@ -20,15 +20,6 @@ namespace OmniSharp.Roslyn.CSharp.Services.Types
             WithMiscellaneousOptions(SymbolDisplayMiscellaneousOptions.None).
             WithMiscellaneousOptions(SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers);
 
-        // default from symbol.ToMinimalDisplayString + IncludeConstantValue
-        private static readonly SymbolDisplayFormat MinimalFormat = SymbolDisplayFormat.MinimallyQualifiedFormat.WithMemberOptions(
-            SymbolDisplayMemberOptions.IncludeParameters |
-            SymbolDisplayMemberOptions.IncludeType |
-            SymbolDisplayMemberOptions.IncludeRef |
-            SymbolDisplayMemberOptions.IncludeContainingType |
-            SymbolDisplayMemberOptions.IncludeConstantValue
-         );
-
         [ImportingConstructor]
         public TypeLookupService(OmniSharpWorkspace workspace, FormattingOptions formattingOptions)
         {
@@ -50,7 +41,7 @@ namespace OmniSharp.Roslyn.CSharp.Services.Types
                 {
                     response.Type = symbol.Kind == SymbolKind.NamedType ? 
                         symbol.ToDisplayString(DefaultFormat) : 
-                        symbol.ToMinimalDisplayString(semanticModel, position, MinimalFormat);
+                        symbol.ToMinimalDisplayString(semanticModel, position);
 
                     if (request.IncludeDocumentation)
                     {

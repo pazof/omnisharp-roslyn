@@ -14,7 +14,7 @@ using OmniSharp.Mef;
 using OmniSharp.Models;
 using OmniSharp.Models.UpdateBuffer;
 using OmniSharp.Plugins;
-using OmniSharp.Protocol;
+using OmniSharp.Stdio.Protocol;
 
 namespace OmniSharp.Endpoint
 {

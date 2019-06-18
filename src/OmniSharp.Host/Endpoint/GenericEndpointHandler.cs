@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using OmniSharp.Protocol;
+using OmniSharp.Stdio.Protocol;
 
 namespace OmniSharp.Endpoint
 {

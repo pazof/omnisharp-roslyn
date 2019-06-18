@@ -49,7 +49,7 @@ namespace OmniSharp.Models
         }
 
         public override string ToString()
-            => $"{Text} ({Line}:{Column}) - ({EndLine}:{EndColumn})";
+            => $"({Line}:{Column}) - ({EndLine}:{EndColumn})";
 
         public bool Contains(int line, int column)
         {

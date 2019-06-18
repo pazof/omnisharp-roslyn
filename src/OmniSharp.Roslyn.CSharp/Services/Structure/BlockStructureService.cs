@@ -50,13 +50,7 @@ namespace OmniSharp.Roslyn.CSharp.Services.Structure
 
         public async Task<BlockStructureResponse> Handle(BlockStructureRequest request)
         {
-            // To provide complete code structure for the document wait until all projects are loaded.
-            var document = await _workspace.GetDocumentFromFullProjectModelAsync(request.FileName);
-            if (document == null)
-            {
-                return null;
-            }
-
+            var document = _workspace.GetDocument(request.FileName);
             var text = await document.GetTextAsync();
 
             var service = _blockStructureService.LazyGetMethod("GetService").InvokeStatic(new[] { document });

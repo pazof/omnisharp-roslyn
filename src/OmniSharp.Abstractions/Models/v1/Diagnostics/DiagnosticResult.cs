@@ -6,10 +6,5 @@ namespace OmniSharp.Models.Diagnostics
     {
         public string FileName { get; set; }
         public IEnumerable<DiagnosticLocation> QuickFixes { get; set; }
-
-        public override string ToString()
-        {
-            return $"{FileName} -> {string.Join(", ", QuickFixes)}";
-        }
     }
 }

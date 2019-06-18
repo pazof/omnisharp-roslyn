@@ -5,7 +5,7 @@ using Newtonsoft.Json;
 
 namespace OmniSharp.Models
 {
-    internal class ZeroBasedIndexConverter : JsonConverter
+    public class ZeroBasedIndexConverter : JsonConverter
     {
         public override bool CanConvert(Type objectType)
         {

@@ -21,6 +21,12 @@ namespace Microsoft.DotNet.ProjectModel.Resolution
         private static readonly NuGetFramework Dnx46 = new NuGetFramework(
             FrameworkConstants.FrameworkIdentifiers.Dnx,
             new Version(4, 6));
+        private static readonly NuGetFramework Dnx461 = new NuGetFramework(
+            FrameworkConstants.FrameworkIdentifiers.Dnx,
+            new Version(4, 6, 1));
+        private static readonly NuGetFramework Dnx462 = new NuGetFramework(
+            FrameworkConstants.FrameworkIdentifiers.Dnx,
+            new Version(4, 6, 2));
 
         private static FrameworkReferenceResolver _default;
 
@@ -28,8 +34,12 @@ namespace Microsoft.DotNet.ProjectModel.Resolution
 
         private static readonly IDictionary<NuGetFramework, NuGetFramework[]> _aliases = new Dictionary<NuGetFramework, NuGetFramework[]>
         {
+            { FrameworkConstants.CommonFrameworks.Dnx45, new [] { FrameworkConstants.CommonFrameworks.Net45 } },
             { FrameworkConstants.CommonFrameworks.Dnx451, new [] { FrameworkConstants.CommonFrameworks.Net451 } },
-            { Dnx46, new [] { FrameworkConstants.CommonFrameworks.Net46 } }
+            { FrameworkConstants.CommonFrameworks.Dnx452, new [] { FrameworkConstants.CommonFrameworks.Net452 } },
+            { Dnx46, new [] { FrameworkConstants.CommonFrameworks.Net46 } },
+            { Dnx461, new [] { FrameworkConstants.CommonFrameworks.Net461 } },
+            { Dnx462, new [] { FrameworkConstants.CommonFrameworks.Net462 } }
         };
 
         public FrameworkReferenceResolver(string referenceAssembliesPath)

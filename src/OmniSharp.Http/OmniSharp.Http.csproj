@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net472</TargetFramework>
+        <TargetFramework>net461</TargetFramework>
         <PlatformTarget>AnyCPU</PlatformTarget>
     </PropertyGroup>
 
@@ -13,10 +13,10 @@
         <ProjectReference Include="..\OmniSharp.Script\OmniSharp.Script.csproj" />
         <ProjectReference Include="..\OmniSharp.Roslyn.CSharp\OmniSharp.Roslyn.CSharp.csproj" />
         <ProjectReference Include="..\OmniSharp.Cake\OmniSharp.Cake.csproj" />
+        <ProjectReference Include="..\OmniSharp.Dnx\OmniSharp.Dnx.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="All" />
         <PackageReference Include="Microsoft.AspNetCore.Diagnostics" />
         <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" />
         <PackageReference Include="Microsoft.AspNetCore.Hosting" />

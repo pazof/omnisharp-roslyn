@@ -14,6 +14,7 @@ namespace OmniSharp.Http
             _serverInterface = Application.Option("-i | --interface", "Server interface address (defaults to 'localhost').", CommandOptionType.SingleValue);
         }
 
+
         public int Port => _port.GetValueOrDefault(2000);
         public string Interface => _serverInterface.GetValueOrDefault("localhost");
     }

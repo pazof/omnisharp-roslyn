@@ -21,10 +21,8 @@ namespace OmniSharp.Roslyn.CSharp.Tests
         {
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task Can_get_code_actions_from_roslyn(bool roslynAnalyzersEnabled)
+        [Fact]
+        public async Task Can_get_code_actions_from_roslyn()
         {
             const string code =
                 @"public class Class1
@@ -35,14 +33,12 @@ namespace OmniSharp.Roslyn.CSharp.Tests
                         }
                     }";
 
-            var refactorings = await FindRefactoringNamesAsync(code, roslynAnalyzersEnabled);
+            var refactorings = await FindRefactoringNamesAsync(code);
             Assert.Contains("using System;", refactorings);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task Can_get_code_actions_from_external_source(bool roslynAnalyzersEnabled)
+        [Fact]
+        public async Task Can_get_code_actions_from_external_source()
         {
             const string code =
                 @"
@@ -59,20 +55,16 @@ namespace OmniSharp.Roslyn.CSharp.Tests
 
             var configuration = new Dictionary<string, string>
             {
-                { "RoslynExtensionsOptions:LocationPaths:0", TestAssets.Instance.TestBinariesFolder },
+                { "RoslynExtensionsOptions:LocationPaths:0", TestAssets.Instance.TestBinariesFolder }
             };
-
-            var refactorings = await FindRefactoringsAsync(code,
-                TestHelpers.GetConfigurationDataWithAnalyzerConfig(roslynAnalyzersEnabled, existingConfiguration: configuration));
+            var refactorings = await FindRefactoringsAsync(code, configuration);
 
             Assert.NotEmpty(refactorings);
             Assert.Contains("Add ConfigureAwait(false)", refactorings.Select(x => x.Name));
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task Can_remove_unnecessary_usings(bool roslynAnalyzersEnabled)
+        [Fact]
+        public async Task Can_remove_unnecessary_usings()
         {
             const string code =
                 @"using MyNamespace3;
@@ -88,14 +80,12 @@ namespace OmniSharp.Roslyn.CSharp.Tests
 
                 public class c {public c() {Guid.NewGuid();}}";
 
-            var response = await RunRefactoringAsync(code, "Remove Unnecessary Usings", roslynAnalyzersEnabled: roslynAnalyzersEnabled);
+            var response = await RunRefactoringAsync(code, "Remove Unnecessary Usings");
             AssertIgnoringIndent(expected, ((ModifiedFileResponse)response.Changes.First()).Buffer);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task Can_get_ranged_code_action(bool roslynAnalyzersEnabled)
+        [Fact]
+        public async Task Can_get_ranged_code_action()
         {
             const string code =
                 @"public class Class1
@@ -106,14 +96,12 @@ namespace OmniSharp.Roslyn.CSharp.Tests
                     }
                 }";
 
-            var refactorings = await FindRefactoringNamesAsync(code, roslynAnalyzersEnabled);
+            var refactorings = await FindRefactoringNamesAsync(code);
             Assert.Contains("Extract Method", refactorings);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task Returns_ordered_code_actions(bool roslynAnalyzersEnabled)
+        [Fact]
+        public async Task Returns_ordered_code_actions()
         {
             const string code =
                 @"public class Class1
@@ -124,23 +112,8 @@ namespace OmniSharp.Roslyn.CSharp.Tests
                     }
                 }";
 
-            var refactorings = await FindRefactoringNamesAsync(code, roslynAnalyzersEnabled);
-
-            List<string> expected = roslynAnalyzersEnabled ? new List<string>
-            {
-                "Fix formatting",
-                "using System;",
-                "System.Console",
-                "Generate variable 'Console' -> Generate property 'Class1.Console'",
-                "Generate variable 'Console' -> Generate field 'Class1.Console'",
-                "Generate variable 'Console' -> Generate read-only field 'Class1.Console'",
-                "Generate variable 'Console' -> Generate local 'Console'",
-                "Generate variable 'Console' -> Generate parameter 'Console'",
-                "Generate type 'Console' -> Generate class 'Console' in new file",
-                "Generate type 'Console' -> Generate class 'Console'",
-                "Generate type 'Console' -> Generate nested class 'Console'",
-                "Extract Method"
-            } : new List<string>
+            var refactorings = await FindRefactoringNamesAsync(code);
+            List<string> expected = new List<string>
             {
                 "using System;",
                 "System.Console",
@@ -148,20 +121,16 @@ namespace OmniSharp.Roslyn.CSharp.Tests
                 "Generate variable 'Console' -> Generate field 'Class1.Console'",
                 "Generate variable 'Console' -> Generate read-only field 'Class1.Console'",
                 "Generate variable 'Console' -> Generate local 'Console'",
-                "Generate variable 'Console' -> Generate parameter 'Console'",
                 "Generate type 'Console' -> Generate class 'Console' in new file",
                 "Generate type 'Console' -> Generate class 'Console'",
                 "Generate type 'Console' -> Generate nested class 'Console'",
                 "Extract Method"
             };
-
             Assert.Equal(expected, refactorings);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task Can_extract_method(bool roslynAnalyzersEnabled)
+        [Fact]
+        public async Task Can_extract_method()
         {
             const string code =
                 @"public class Class1
@@ -184,17 +153,15 @@ namespace OmniSharp.Roslyn.CSharp.Tests
                         Console.Write(""should be using System;"");
                     }
                 }";
-            var response = await RunRefactoringAsync(code, "Extract Method", roslynAnalyzersEnabled: roslynAnalyzersEnabled);
+            var response = await RunRefactoringAsync(code, "Extract Method");
             AssertIgnoringIndent(expected, ((ModifiedFileResponse)response.Changes.First()).Buffer);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task Can_generate_type_and_return_name_of_new_file(bool roslynAnalyzersEnabled)
+        [Fact]
+        public async Task Can_generate_type_and_return_name_of_new_file()
         {
             using (var testProject = await TestAssets.Instance.GetTestProjectAsync("ProjectWithMissingType"))
-            using (var host = CreateOmniSharpHost(testProject.Directory, configurationData: TestHelpers.GetConfigurationDataWithAnalyzerConfig(roslynAnalyzersEnabled)))
+            using (var host = CreateOmniSharpHost(testProject.Directory))
             {
                 var requestHandler = host.GetRequestHandler<RunCodeActionService>(OmniSharpEndpoints.V2.RunCodeAction);
                 var document = host.Workspace.CurrentSolution.Projects.First().Documents.First();
@@ -229,13 +196,11 @@ namespace OmniSharp.Roslyn.CSharp.Tests
             }
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task Can_send_rename_and_fileOpen_responses_when_codeAction_renames_file(bool roslynAnalyzersEnabled)
+        [Fact]
+        public async Task Can_send_rename_and_fileOpen_responses_when_codeAction_renames_file()
         {
             using (var testProject = await TestAssets.Instance.GetTestProjectAsync("ProjectWithMismatchedFileName"))
-            using (var host = CreateOmniSharpHost(testProject.Directory, configurationData: TestHelpers.GetConfigurationDataWithAnalyzerConfig(roslynAnalyzersEnabled)))
+            using (var host = CreateOmniSharpHost(testProject.Directory))
             {
                 var requestHandler = host.GetRequestHandler<RunCodeActionService>(OmniSharpEndpoints.V2.RunCodeAction);
                 var document = host.Workspace.CurrentSolution.Projects.First().Documents.First();
@@ -258,8 +223,6 @@ namespace OmniSharp.Roslyn.CSharp.Tests
                 Assert.Equal(2, changes.Length);
                 Assert.Equal(FileModificationType.Renamed, changes[0].ModificationType);
                 Assert.Contains("Class1.cs", ((RenamedFileResponse)changes[0]).NewFileName);
-                Assert.False(File.Exists(((RenamedFileResponse)changes[0]).FileName), "The old renamed file exists - even though it should not.");
-                Assert.True(File.Exists(((RenamedFileResponse)changes[0]).NewFileName), "The new renamed file doesn't exist - even though it should.");
                 Assert.Equal(FileModificationType.Opened, changes[1].ModificationType);
             }
         }
@@ -274,18 +237,18 @@ namespace OmniSharp.Roslyn.CSharp.Tests
             return string.Join("\n", source.Split('\n').Select(s => s.Trim()));
         }
 
-        private async Task<RunCodeActionResponse> RunRefactoringAsync(string code, string refactoringName, bool wantsChanges = false, bool roslynAnalyzersEnabled = false)
+        private async Task<RunCodeActionResponse> RunRefactoringAsync(string code, string refactoringName, bool wantsChanges = false)
         {
-            var refactorings = await FindRefactoringsAsync(code, configurationData: TestHelpers.GetConfigurationDataWithAnalyzerConfig(roslynAnalyzersEnabled));
+            var refactorings = await FindRefactoringsAsync(code);
             Assert.Contains(refactoringName, refactorings.Select(a => a.Name));
 
             var identifier = refactorings.First(action => action.Name.Equals(refactoringName)).Identifier;
             return await RunRefactoringsAsync(code, identifier, wantsChanges);
         }
 
-        private async Task<IEnumerable<string>> FindRefactoringNamesAsync(string code, bool roslynAnalyzersEnabled = false)
+        private async Task<IEnumerable<string>> FindRefactoringNamesAsync(string code)
         {
-            var codeActions = await FindRefactoringsAsync(code, configurationData: TestHelpers.GetConfigurationDataWithAnalyzerConfig(roslynAnalyzersEnabled));
+            var codeActions = await FindRefactoringsAsync(code);
 
             return codeActions.Select(a => a.Name);
         }

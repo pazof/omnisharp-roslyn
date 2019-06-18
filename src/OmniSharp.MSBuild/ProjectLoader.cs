@@ -77,27 +77,9 @@ namespace OmniSharp.MSBuild
 
                 var projectInstance = evaluatedProject.CreateProjectInstance();
                 var msbuildLogger = new MSBuildLogger(_logger);
-
-                var loggers = new List<MSB.Framework.ILogger>()
-                {
-                    msbuildLogger
-                };
-
-                if (_options.GenerateBinaryLogs)
-                {
-                    var binlogPath = Path.ChangeExtension(projectInstance.FullPath, ".binlog");
-                    var binaryLogger = new MSB.Logging.BinaryLogger()
-                    {
-                        CollectProjectImports = MSB.Logging.BinaryLogger.ProjectImportsCollectionMode.Embed,
-                        Parameters = binlogPath
-                    };
-
-                    loggers.Add(binaryLogger);
-                }
-
                 var buildResult = projectInstance.Build(
                     targets: new string[] { TargetNames.Compile, TargetNames.CoreCompile },
-                    loggers);
+                    loggers: new[] { msbuildLogger });
 
                 var diagnostics = msbuildLogger.GetDiagnostics();
 
@@ -153,19 +135,13 @@ namespace OmniSharp.MSBuild
             }
         }
 
-        private string GetLegalToolsetVersion(string toolsVersion, ICollection<MSB.Evaluation.Toolset> toolsets)
+        private static string GetLegalToolsetVersion(string toolsVersion, ICollection<MSB.Evaluation.Toolset> toolsets)
         {
-            // Does the expected tools version exist? If so, use it.
-            foreach (var toolset in toolsets)
-            {
-                if (toolset.ToolsVersion == toolsVersion)
-                {
-                    return toolsVersion;
-                }
-            }
+            // It's entirely possible the the toolset specified does not exist. In that case, we'll try to use
+            // the highest version available.
+            var version = new Version(toolsVersion);
 
-            // If not, try to find the highest version available and use that instead.
-
+            bool exists = false;
             Version highestVersion = null;
 
             var legalToolsets = new SortedList<Version, MSB.Evaluation.Toolset>(toolsets.Count);
@@ -183,20 +159,25 @@ namespace OmniSharp.MSBuild
                     {
                         highestVersion = toolsetVersion;
                     }
+
+                    if (toolsetVersion == version)
+                    {
+                        exists = true;
+                    }
                 }
             }
 
-            if (legalToolsets.Count == 0 || highestVersion == null)
+            if (highestVersion == null)
             {
-                _logger.LogError($"No legal MSBuild tools available, defaulting to {toolsVersion}.");
-                return toolsVersion;
+                throw new InvalidOperationException("No legal MSBuild toolsets available.");
             }
 
-            var result = legalToolsets[highestVersion].ToolsVersion;
+            if (!exists)
+            {
+                toolsVersion = legalToolsets[highestVersion].ToolsPath;
+            }
 
-            _logger.LogInformation($"Using MSBuild tools version: {result}");
-
-            return result;
+            return toolsVersion;
         }
     }
 }

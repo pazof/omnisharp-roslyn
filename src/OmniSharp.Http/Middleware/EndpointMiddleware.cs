@@ -12,7 +12,7 @@ using OmniSharp.Mef;
 using OmniSharp.Models.UpdateBuffer;
 using OmniSharp.Plugins;
 using OmniSharp.Services;
-using OmniSharp.Protocol;
+using OmniSharp.Stdio.Protocol;
 
 namespace OmniSharp.Http.Middleware
 {

@@ -27,10 +27,8 @@ namespace OmniSharp.MSBuild.Discovery.Providers
                 return NoInstances;
             }
 
-            var msbuildPath = Path.Combine(path, "MSBuild");
-            var toolsPath = FindMSBuildToolsPath(msbuildPath);
-
-            if (toolsPath == null)
+            var toolsPath = Path.Combine(path, "MSBuild", "15.0", "Bin");
+            if (!Directory.Exists(toolsPath))
             {
                 return NoInstances;
             }
