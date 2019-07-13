@@ -10,5 +10,10 @@ namespace Microsoft.Framework.DesignTimeHost.Models.OutgoingMessages
         public string Path { get; set; }
         public int Line { get; set; }
         public int Column { get; set; }
+
+        public override string ToString()
+        {
+            return $"[ErrorMessage Message=\"{Message}\" Path={Path} Line={Line} Column={Column}";
+        }
     }
 }
