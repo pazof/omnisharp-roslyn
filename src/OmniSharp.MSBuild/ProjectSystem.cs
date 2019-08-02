@@ -68,7 +68,7 @@ namespace OmniSharp.MSBuild
         {
             _environment = environment;
             _workspace = workspace;
-            _propertyOverrides = msbuildLocator.RegisteredInstance.PropertyOverrides;
+            _propertyOverrides = msbuildLocator?.RegisteredInstance?.PropertyOverrides;
             _dotNetCli = dotNetCliService;
             _sdksPathResolver = sdksPathResolver;
             _metadataFileReferenceCache = metadataFileReferenceCache;
