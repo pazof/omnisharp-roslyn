@@ -4,5 +4,11 @@
     },
     "dnx": {
         "enabled": false
+    },
+    "Cake": {
+        "enabled": false
+    },
+    "Script": {
+        "enabled": false
     }
 }
