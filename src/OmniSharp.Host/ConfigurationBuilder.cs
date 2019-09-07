@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
@@ -42,7 +43,25 @@ namespace OmniSharp
             configBuilder.CreateAndAddGlobalOptionsFile(_environment);
 
             // Use the local omnisharp config if there's any in the root path
-            configBuilder.AddJsonFile(
+            var dirinfo = new DirectoryInfo(_environment.TargetDirectory);
+
+            var confinfo = new FileInfo(Path.Combine(_environment.TargetDirectory, Constants.OptionsFile));
+
+            if (!confinfo.Exists) {
+
+                while (!confinfo.Exists) 
+                {
+                    dirinfo = dirinfo.Parent;
+                    confinfo = new FileInfo(Path.Combine(dirinfo.FullName, Constants.OptionsFile));
+                }
+                if (confinfo.Exists)
+                    configBuilder.AddJsonFile(
+                        new PhysicalFileProvider(dirinfo.FullName).WrapForPolling(),
+                        Constants.OptionsFile,
+                        optional: true,
+                        reloadOnChange: true);
+            }
+            else configBuilder.AddJsonFile(
                 new PhysicalFileProvider(_environment.TargetDirectory).WrapForPolling(),
                 Constants.OptionsFile,
                 optional: true,
