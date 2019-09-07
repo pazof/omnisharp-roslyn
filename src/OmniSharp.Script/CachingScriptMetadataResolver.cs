@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
+using System.IO;
+
 
 namespace OmniSharp.Script
 {
@@ -33,8 +35,15 @@ namespace OmniSharp.Script
             {
                 return MissingReferenceCache[referenceIdentity.Name];
             }
+            PortableExecutableReference result = null;
+            try {
+                result = _defaultReferenceResolver.ResolveMissingAssembly(definition, referenceIdentity);
+            }
+            catch (FileLoadException)
+            {
+                
+            }
 
-            var result = _defaultReferenceResolver.ResolveMissingAssembly(definition, referenceIdentity);
             if (result != null)
             {
                 MissingReferenceCache[referenceIdentity.Name] = result;
