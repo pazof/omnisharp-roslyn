@@ -139,16 +139,30 @@ namespace OmniSharp.MSBuild
         {
             // It's entirely possible the the toolset specified does not exist. In that case, we'll try to use
             // the highest version available.
-            var version = new Version(toolsVersion);
-
+            Version version;
+            
             bool exists = false;
             Version highestVersion = null;
-
             var legalToolsets = new SortedList<Version, MSB.Evaluation.Toolset>(toolsets.Count);
+
+            if (!Version.TryParse(toolsVersion, out version))
+            {
+                // toolsVersion may be "Current"
+                if (toolsVersion == "Current")
+                    foreach (var toolset in toolsets)
+                {
+                    if (toolset.ToolsVersion == toolsVersion && Directory.Exists(toolset.ToolsPath))
+                    {
+                        return toolsVersion;
+                    }
+                }
+            }
+
+
             foreach (var toolset in toolsets)
             {
                 // Only consider this toolset if it has a legal version, we haven't seen it, and its path exists.
-                if (Version.TryParse(toolset.ToolsVersion, out var toolsetVersion) &&
+                if (Version.TryParse(toolset.ToolsVersion, out var toolsetVersion) && 
                     !legalToolsets.ContainsKey(toolsetVersion) &&
                     Directory.Exists(toolset.ToolsPath))
                 {
