@@ -48,13 +48,14 @@ namespace OmniSharp
             var confinfo = new FileInfo(Path.Combine(_environment.TargetDirectory, Constants.OptionsFile));
 
             if (!confinfo.Exists) {
-
-                while (!confinfo.Exists) 
+                while (!confinfo.Exists && dirinfo != null)
                 {
                     dirinfo = dirinfo.Parent;
+                    if (dirinfo != null)
                     confinfo = new FileInfo(Path.Combine(dirinfo.FullName, Constants.OptionsFile));
                 }
-                if (confinfo.Exists)
+
+                if (confinfo !=null && confinfo.Exists)
                     configBuilder.AddJsonFile(
                         new PhysicalFileProvider(dirinfo.FullName).WrapForPolling(),
                         Constants.OptionsFile,
